@@ -21,11 +21,16 @@ import {
   Star,
   ChevronDown,
   Check,
+  Recycle,
+  TreePalm,
+  Newspaper,
+  Edit
 } from "lucide-react"
 import { useCoAgent, useCoAgentStateRender, useCopilotAction, useCopilotChat } from "@copilotkit/react-core"
 import { ToolLogs } from "@/components/ui/tool-logs"
 import { XPost, XPostPreview, XPostCompact } from "@/components/ui/x-post"
 import { LinkedInPost, LinkedInPostPreview, LinkedInPostCompact } from "@/components/ui/linkedin-post"
+import BlogPost, { BlogPostCompact } from "@/components/ui/blog-post"
 import { Button } from "@/components/ui/button"
 import { initialPrompt, suggestionPrompt } from "../prompts/prompts"
 import { Textarea } from "@/components/ui/textarea"
@@ -54,10 +59,10 @@ const agents = [
 ]
 
 const quickActions = [
-  { label: "Recent Research", icon: Search, color: "text-blue-600", prompt: "Generate a post about recent research on String Theory" },
-  { label: "Recent News", icon: FileText, color: "text-green-600", prompt: "Generate a post about recent news in United States" },
-  { label: "Post about Social Media", icon: Twitter, color: "text-purple-600", prompt: "Generate a post about Instagram" },
-  { label: "Post about Stocks", icon: TrendingUp, color: "text-orange-600", prompt: "Generate a post about Nvidia" },
+  { label: "Recent Research", icon: Search, color: "text-green-600", prompt: "Generate a compelling post about recent research on organic lawn care" },
+  { label: "Recent News", icon: Newspaper, color: "text-green-600", prompt: "Generate a compelling post about recent news in organic lawn care" },
+  { label: "Organic Lawn Care", icon: Recycle, color: "text-green-600", prompt: "Generate a compelling post on organic lawn care tips" },
+  { label: "Greener Grass", icon: TreePalm, color: "text-green-600", prompt: "Generate a compelling post about Greener Grass Organic Lawn & Pest" },
 ]
 
 interface PostInterface {
@@ -68,6 +73,15 @@ interface PostInterface {
   linkedIn: {
     title: string
     content: string
+  }
+  blog?: {
+    title: string
+    content: string
+    author?: string
+    date?: string
+    category?: string
+    image?: string
+    image_generation?: string
   }
 }
 
@@ -80,6 +94,9 @@ export default function PostGenerator() {
   const [posts, setPosts] = useState<PostInterface>({ tweet: { title: "", content: "" }, linkedIn: { title: "", content: "" } })
   const [isAgentActive, setIsAgentActive] = useState(false)
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  // canvas view state: 'linkedin', 'x', 'blog'
+  const [canvasView, setCanvasView] = useState<'linkedin' | 'x' | 'blog'>('linkedin')
+  const [isViewDropdownOpen, setIsViewDropdownOpen] = useState(false)
   const { setState, running } = useCoAgent({
     name: "post_generation_agent",
     initialState: {
@@ -94,12 +111,14 @@ export default function PostGenerator() {
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Element
+      // close both dropdowns when clicking outside
       if (!target.closest('.dropdown-container')) {
         setIsDropdownOpen(false)
+        setIsViewDropdownOpen(false)
       }
     }
 
-    if (isDropdownOpen) {
+    if (isDropdownOpen || isViewDropdownOpen) {
       document.addEventListener('mousedown', handleClickOutside)
     }
 
@@ -154,6 +173,20 @@ export default function PostGenerator() {
           }
         ]
       }
+      ,
+      {
+        name: "blog",
+        type: "object",
+        description: "A blog post to be rendered in the canvas",
+        attributes: [
+          { name: "title", type: "string", description: "Blog title" },
+          { name: "content", type: "string", description: "Blog content (markdown or plain)" },
+          { name: "author", type: "string", description: "Author name" },
+          { name: "date", type: "string", description: "Publication date" },
+          { name: "category", type: "string", description: "Category" },
+          { name: "image", type: "string", description: "Image URL" },
+        ]
+      }
     ],
     render: ({ args }) => {
       useEffect(() => {
@@ -164,15 +197,38 @@ export default function PostGenerator() {
         {args.tweet?.content != '' && <div className="px-2 mb-3">
           <XPostCompact title={args.tweet?.title || ""} content={args.tweet?.content || ""} />
         </div>}
-        {args.linkedIn?.content != '' && <div className="px-2">
+        {args.linkedIn?.content != '' && <div className="px-2 mb-3">
           <LinkedInPostCompact title={args.linkedIn?.title || ""} content={args.linkedIn?.content || ""} />
+        </div>}
+        {args.blog?.content != '' && <div className="px-2">
+          <BlogPostCompact title={args.blog?.title || ""} content={args.blog?.content || ""} />
         </div>}
       </>
     },
     handler: (args) => {
       console.log(args, "args")
       setShowColumns(true)
-      setPosts({ tweet: args.tweet, linkedIn: args.linkedIn })
+      // If the blog includes `image_generation` (optimized prompt), call the image API
+      const attachImage = async () => {
+        let blog = args.blog
+        try {
+          if (blog?.image_generation && !blog?.image) {
+            const res = await fetch('/api/generate-image', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ prompt: blog.image_generation })
+            })
+            const data = await res.json()
+            if (data?.url) {
+              blog = { ...blog, image: data.url }
+            }
+          }
+        } catch (err) {
+          console.error('Image generation failed', err)
+        }
+        setPosts({ tweet: args.tweet, linkedIn: args.linkedIn, blog })
+      }
+      attachImage()
       setState((prevState) => ({
         ...prevState,
         tool_logs: []
@@ -188,8 +244,8 @@ export default function PostGenerator() {
 
   return (
     <div className="flex h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 overflow-hidden">
-      {/* Sidebar */}
-      <div className="flex flex-col min-h-screen w-80 bg-white/80 backdrop-blur-xl border-r border-gray-200/50 shadow-xl">
+      {/* Chat Column (approx 2/5) */}
+      <div className="flex flex-col min-h-screen w-2/5 bg-white/80 backdrop-blur-xl border-r border-gray-200/50 shadow-xl">
         {/* Header */}
         <div className="h-40 p-4 border-b border-gray-100/50">
           <div className="flex items-center gap-3 mb-4">
@@ -203,9 +259,8 @@ export default function PostGenerator() {
             </div>
             <div>
               <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-                Open Gemini Canvas
+                Marketing Suite
               </h1>
-              <p className="text-sm text-gray-600">Advanced AI Canvas</p>
             </div>
           </div>
 
@@ -242,11 +297,11 @@ export default function PostGenerator() {
                   {agents.map((agent) => (
                     <button
                       key={agent.id}
-                      onClick={() => {
+                        onClick={() => {
                         if (selectedAgent.id != agent.id) {
                             updateLayout({ agent: agent.id })
                             setMessages([])
-                            router.push(`/stack-analyzer`)
+                            router.push(`/image-generator`)
                         }
                         setIsDropdownOpen(false)
                       }}
@@ -326,30 +381,51 @@ export default function PostGenerator() {
 
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+  {/* Main Content (approx 3/5) */}
+  <div className="w-3/5 flex flex-col overflow-hidden">
         {/* Header */}
         <div className="bg-white/80 backdrop-blur-xl border-b border-gray-200/50 p-6 shadow-sm flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="w-8 h-8 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
-                <Sparkles className="w-5 h-5 text-white" />
+                <Edit className="w-5 h-5 text-white" />
               </div>
               <div>
                 <h2 className="text-2xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 bg-clip-text text-transparent">
-                  Posts Generation Canvas
+                  AI-Powered Editor Canvas
                 </h2>
                 <p className="text-sm text-gray-600">Powered by Gemini AI & Google Web Search</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
-              {isAgentActive && <Badge className="bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0 shadow-sm">
+              {isAgentActive && <Badge className="bg-green-300 text-green-500 border-0 shadow-sm">
                 <div className="w-2 h-2 bg-white rounded-full mr-2 animate-pulse"></div>
                 Live Research
               </Badge>}
-              {/* <div className="w-8 h-8 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-lg flex items-center justify-center">
-                <Zap className="w-4 h-4 text-white" />
-              </div> */}
+
+              {/* Canvas view dropdown (Blog / LinkedIn / X / Both) */}
+              <div className="relative dropdown-container">
+                <button
+                  onClick={() => setIsViewDropdownOpen(!isViewDropdownOpen)}
+                  className="flex items-center gap-2 p-2 border border-gray-200/50 rounded-xl bg-white/50 hover:shadow-sm"
+                >
+                  <span className="text-sm font-medium text-gray-700">
+                    {canvasView === 'blog' ? 'Blog' : canvasView === 'x' ? 'X (Twitter)' : 'LinkedIn'}
+                  </span>
+                  <ChevronDown className={cn("w-4 h-4 text-gray-500 transition-transform duration-200", isViewDropdownOpen && "rotate-180")} />
+                </button>
+
+                <div className={cn(
+                  "absolute right-0 mt-2 w-44 bg-white/95 backdrop-blur-xl border border-gray-200/50 rounded-xl shadow-xl z-50 transition-all duration-200 transform origin-top",
+                  isViewDropdownOpen ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-95 -translate-y-2 pointer-events-none"
+                )}>
+                  <div className="p-1">
+                    <button onClick={() => { setCanvasView('linkedin'); setIsViewDropdownOpen(false) }} className={cn("w-full text-left p-2 rounded-md hover:bg-gray-50", canvasView === 'linkedin' && "bg-blue-50")}>LinkedIn</button>
+                    <button onClick={() => { setCanvasView('x'); setIsViewDropdownOpen(false) }} className={cn("w-full text-left p-2 rounded-md hover:bg-gray-50", canvasView === 'x' && "bg-blue-50")}>X (Twitter)</button>
+                    <button onClick={() => { setCanvasView('blog'); setIsViewDropdownOpen(false) }} className={cn("w-full text-left p-2 rounded-md hover:bg-gray-50", canvasView === 'blog' && "bg-blue-50")}>Blog</button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -357,29 +433,60 @@ export default function PostGenerator() {
         {/* Main Canvas */}
         <div className="flex-1 p-6 overflow-y-auto">
           {showColumns ? (
-            <div className="flex gap-6 min-h-full">
-              {/* LinkedIn Column - 75% */}
-              {posts.linkedIn.content != '' && <div className="w-[75%] h-full">
-                <LinkedInPostPreview title={posts.linkedIn.title || ""} content={posts.linkedIn.content || ""} />
-              </div>}
-
-              {/* X Post Column - 25% */}
-              {posts.tweet.content != '' && <div className="w-[25%] h-full">
-                <XPostPreview title={posts.tweet.title || ""} content={posts.tweet.content || ""} />
-              </div>}
-            </div>
+            // Render single selected canvas view
+            (canvasView === 'linkedin' && (
+              <div className="w-full h-full">
+                {posts.linkedIn.content ? (
+                  <div className="w-full h-full">
+                    <LinkedInPostPreview title={posts.linkedIn.title || ""} content={posts.linkedIn.content || ""} />
+                  </div>
+                ) : <div className="text-center text-gray-500">No LinkedIn content yet.</div>}
+              </div>
+            )) || (canvasView === 'x' && (
+              <div className="w-full h-full">
+                {posts.tweet.content ? (
+                  <div className="w-full h-full">
+                    <XPostPreview title={posts.tweet.title || ""} content={posts.tweet.content || ""} />
+                  </div>
+                ) : <div className="text-center text-gray-500">No X (Twitter) content yet.</div>}
+              </div>
+            )) || (canvasView === 'blog' && (
+              <div className="w-full h-full">
+                {posts.blog?.content ? (
+                  <div className="max-w-3xl mx-auto">
+                    <BlogPost
+                      title={posts.blog.title || ""}
+                      content={posts.blog.content || ""}
+                      author={posts.blog.author}
+                      date={posts.blog.date}
+                      category={posts.blog.category}
+                      image={posts.blog.image}
+                    />
+                    <div className="mt-4 flex gap-2 justify-end">
+                      <Button onClick={() => {
+                        const saved = JSON.parse(localStorage.getItem('saved_posts_v1') || '[]')
+                        saved.unshift({ post: posts, createdAt: new Date().toISOString() })
+                        localStorage.setItem('saved_posts_v1', JSON.stringify(saved.slice(0, 50)))
+                        alert('Post saved to localStorage')
+                      }}>Save Post</Button>
+                      <Button variant="outline" onClick={() => router.push('/image-generator')}>Open Image Generator</Button>
+                    </div>
+                  </div>
+                ) : <div className="text-center text-gray-500">No blog content yet.</div>}
+              </div>
+            ))
           ) : (
             <div className="text-center py-16">
               <div className="relative mb-8">
                 <div className="w-20 h-20 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-2xl flex items-center justify-center mx-auto shadow-2xl">
-                  <Brain className="w-10 h-10 text-white" />
+                  <Zap className="w-10 h-10 text-white" />
                 </div>
               </div>
               <h3 className="text-2xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 bg-clip-text text-transparent mb-3">
-                Ready to Explore
+                Your AI Marketing Assistant
               </h3>
               <p className="text-gray-600 mb-8 max-w-md mx-auto leading-relaxed">
-                Harness the power of Google's most advanced AI models for generating interactive LinkedIn and X Posts.
+                I can help you create engaging LinkedIn posts, X (Twitter) posts, blog content, and emails.
               </p>
               <div className="grid grid-cols-2 gap-4 max-w-lg mx-auto">
                 {quickActions.slice(0, 4).map((action, index) => (

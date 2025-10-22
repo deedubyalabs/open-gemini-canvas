@@ -9,7 +9,7 @@ import Wrapper from "./wrapper"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Open Gemini Canvas",
+  title: "Marketing Suite",
   description: "Powered by Google's most advanced AI models for generating LinkedIn and X posts",
   generator: 'v0.dev'
 }

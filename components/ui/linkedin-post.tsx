@@ -41,15 +41,15 @@ export function LinkedInPost({
 
   // Default values for demo purposes
   const defaultAuthor = {
-    name: "DeepMind Research",
-    title: "AI Research Scientist",
-    company: "Google DeepMind",
-    avatar: "/placeholder-user.jpg",
+    name: "Greener Grass Organic Lawn & Pest",
+    title: "The Healthy Lawn You've Always Wanted - Without All The Chemicals",
+    company: "Landscaping Services",
+    avatar: "/greener-grass-logo.jpeg",
     verified: true,
   }
   
-  const defaultTimestamp = "2h"
-  const defaultLocation = "London, UK"
+  const defaultTimestamp = "2h ago"
+  const defaultLocation = "Canton, OH"
   const defaultLikes = 1247
   const defaultComments = 89
   const defaultShares = 23
@@ -231,15 +231,15 @@ export function LinkedInPostCompact({
 
   // Default values for demo purposes
   const defaultAuthor = {
-    name: "DeepMind Research",
-    title: "AI Research Scientist",
-    company: "Google DeepMind",
-    avatar: "/placeholder-user.jpg",
+    name: "Greener Grass Organic Lawn & Pest",
+    title: "The Healthy Lawn You've Always Wanted - Without All The Chemicals",
+    company: "Landscaping Services",
+    avatar: "/greener-grass-logo.jpeg",
     verified: true,
   }
   
-  const defaultTimestamp = "2h"
-  const defaultLocation = "London, UK"
+  const defaultTimestamp = "2h ago"
+  const defaultLocation = "Canton, OH"
   const defaultLikes = 1247
   const defaultComments = 89
   const defaultShares = 23
