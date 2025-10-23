@@ -27,7 +27,10 @@ import {
   Edit,
   Building2Icon,
   Sprout,
-  Info
+  Info,
+  Facebook,
+  Linkedin,
+  Rss
 } from "lucide-react"
 import { useCoAgent, useCoAgentStateRender, useCopilotAction, useCopilotChat } from "@copilotkit/react-core"
 import { ToolLogs } from "@/components/ui/tool-logs"
@@ -55,8 +58,8 @@ const agents = [
 ]
 
 const quickActions = [
-  { label: "Company News", icon: Building2Icon, color: "text-green-600", prompt: "Generate a compelling post about the latest company news" },
-  { label: "Our Services", icon: Sprout, color: "text-green-600", prompt: "Generate a compelling post about one of the services we offer" },
+  { label: "Greener Grass News", icon: Building2Icon, color: "text-green-600", prompt: "Generate a compelling post about the latest company news" },
+  { label: "Greener Grass Services", icon: Sprout, color: "text-green-600", prompt: "Generate a compelling post about one of the services we offer" },
   { label: "Organic Lawn Care", icon: Recycle, color: "text-green-600", prompt: "Generate a compelling post on organic lawn care" },
   { label: "Insights & Tips", icon: Info, color: "text-green-600", prompt: "Generate a compelling post discussing insights and tips for organic lawn care" },
 ]
@@ -122,36 +125,19 @@ export default function PostGenerator() {
         type: "object",
         description: "The tweet to be rendered",
         attributes: [
-          {
-            name: "title",
-            type: "string",
-            description: "The title of the post"
-          },
-          {
-            name: "content",
-            type: "string",
-            description: "The content of the post"
-          }
-        ]
+          { name: "title", type: "string", description: "The title of the post" },
+          { name: "content", type: "string", description: "The content of the post" },
+        ],
       },
       {
         name: "linkedIn",
         type: "object",
         description: "The linkedIn post to be rendered",
         attributes: [
-          {
-            name: "title",
-            type: "string",
-            description: "The title of the post"
-          },
-          {
-            name: "content",
-            type: "string",
-            description: "The content of the post"
-          }
-        ]
-      }
-      ,
+          { name: "title", type: "string", description: "The title of the post" },
+          { name: "content", type: "string", description: "The content of the post" },
+        ],
+      },
       {
         name: "facebook",
         type: "object",
@@ -159,7 +145,7 @@ export default function PostGenerator() {
         attributes: [
           { name: "title", type: "string", description: "Facebook title" },
           { name: "content", type: "string", description: "Facebook content" },
-        ]
+        ],
       },
       {
         name: "blog",
@@ -173,8 +159,8 @@ export default function PostGenerator() {
           { name: "category", type: "string", description: "Category" },
           { name: "image", type: "string", description: "Image URL" },
           { name: "image_generation", type: "string", description: "Optimized image generation prompt" },
-        ]
-      }
+        ],
+      },
     ],
     render: ({ args }) => {
       useEffect(() => {
@@ -199,11 +185,51 @@ export default function PostGenerator() {
     handler: (args) => {
       console.log(args, "args")
       setShowColumns(true)
-      // If the blog includes `image_generation` (optimized prompt), call the image API
-      const attachImage = async () => {
+
+      // Try to attach an image to the blog post. Prefer a local public image
+      // (from /public) based on keywords. If none found and an optimized
+      // `image_generation` prompt exists, call the image generation API.
+      const attachImage = async (): Promise<typeof args.blog> => {
         let blog = args.blog
         try {
-          if (blog?.image_generation && !blog?.image) {
+          // helper to choose a public image from the `public/` folder
+          const choosePublicImage = (b: any): string | undefined => {
+            if (!b) return undefined
+            const text = `${b.title || ''} ${b.content || ''} ${b.category || ''}`.toLowerCase()
+
+            const mappings: { keywords: string[]; file: string }[] = [
+              { keywords: ['aeration'], file: '/aeration.png' },
+              { keywords: ['fertil', 'fertilization'], file: '/fertilization.png' },
+              { keywords: ['flea', 'tick'], file: '/flea-tick-control.png' },
+              { keywords: ['grub', 'insect'], file: '/grub-insect-control.png' },
+              { keywords: ['mosquito'], file: '/mosquito-control.png' },
+              { keywords: ['overseed', 'overseeding'], file: '/overseeding.png' },
+              { keywords: ['pest', 'pest-control'], file: '/pest-control.png' },
+              { keywords: ['pre-emergent', 'crabgrass'], file: '/pre-emergent-crabgrass.png' },
+              { keywords: ['weed', 'weed-control'], file: '/weed-control.png' },
+              { keywords: ['lawn', 'grass'], file: '/general.png' },
+            ]
+
+            for (const m of mappings) {
+              for (const k of m.keywords) {
+                if (text.includes(k)) return m.file
+              }
+            }
+
+            // Default fallback image
+            return '/general.png'
+          }
+
+          // If there's no image provided, try to pick a public one
+          if (!blog?.image) {
+            const publicImg = choosePublicImage(blog)
+            if (publicImg) {
+              blog = { ...blog, image: publicImg }
+            }
+          }
+
+          // If we still don't have an image, fall back to the image-generation API
+          if (!blog?.image && blog?.image_generation) {
             const res = await fetch('/api/generate-image', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -217,8 +243,14 @@ export default function PostGenerator() {
         } catch (err) {
           console.error('Image generation failed', err)
         }
-  setPosts({ tweet: args.tweet, linkedIn: args.linkedIn, facebook: args.facebook, blog })
+
+        return blog
       }
+
+      // Attach image (async) and then update state with the resulting blog
+      attachImage().then((updatedBlog) => {
+        setPosts({ tweet: args.tweet, linkedIn: args.linkedIn, facebook: args.facebook, blog: updatedBlog })
+      })
       attachImage()
       setState((prevState) => ({
         ...prevState,
@@ -239,19 +271,31 @@ export default function PostGenerator() {
       <div className="flex flex-col min-h-screen w-2/5 bg-white backdrop-blur-xl border-r border-gray-200/50 shadow-xl">
         {/* Header */}
         <div className="h-40 p-4 border-b border-gray-100/50">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="relative">
-              <div className="w-10 h-10 bg-green-700 rounded-xl flex items-center justify-center shadow-lg">
-                <Sparkles className="w-6 h-6 text-white" />
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <div className="w-10 h-10 bg-green-700 rounded-xl flex items-center justify-center shadow-lg">
+                  <Sparkles className="w-6 h-6 text-white" />
+                </div>
+                <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center">
+                  <Sparkles className="w-2 h-2 text-white" />
+                </div>
               </div>
-              <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center">
-                <Sparkles className="w-2 h-2 text-white" />
+              <div>
+                <h1 className="text-xl font-bold bg-black bg-clip-text text-transparent">
+                  Greener Grass Content Generation Suite
+                </h1>
               </div>
             </div>
-            <div>
-              <h1 className="text-xl font-bold bg-black bg-clip-text text-transparent">
-                Content Generation Suite
-              </h1>
+
+            {/* Live Research badge on the right */}
+            <div className="flex items-center">
+              {running && (
+                <Badge className="bg-green-100 text-green-700 border border-green-700">
+                  <span className="inline-block w-2 h-2 rounded-full bg-green-700 mr-2 animate-pulse" />
+                  Live Research
+                </Badge>
+              )}
             </div>
           </div>
         </div>
@@ -260,104 +304,101 @@ export default function PostGenerator() {
         <div className="flex-1 overflow-auto">
 
           {/* Chat Input at Bottom */}
-          <CopilotChat className="h-full p-2" labels={{
-            initial: initialPrompt
-          }}
+          <CopilotChat
+            className="h-full p-2"
             Input={({ onSend, inProgress }) => {
-              useEffect(() => {
-                if (inProgress) {
-                  setIsAgentActive(true)
-                } else {
-                  setIsAgentActive(false)
-                }
-              }, [inProgress])
               const [input, setInput] = useState("")
-              return (<>
+              return (
                 <div className="space-y-3">
-                  <form className="flex flex-col gap-3">
-                    <Textarea
-                      value={input}
-                      onKeyDown={(e) => {
-                        if (e.key.toLowerCase() === 'enter' && !inProgress) {
-                          appendMessage(new TextMessage({
-                            role: Role.User,
-                            content: input
-                          }))
-                        }
-                      }}
-                      onChange={(e) => setInput(e.target.value)}
-                      placeholder="Type your message..."
-                      className="min-h-[80px] resize-none rounded-xl border-muted-foreground/20 p-3"
-                    />
-                    <Button disabled={inProgress}
-                      
-                      onClick={(e) => {
-                        e.preventDefault()
-                        if (input.trim() === "") return
-                        console.log("sending message")
-                        onSend(input)
-                        setInput("")
-                      }} className="self-end rounded-xl px-5 bg-transparent text-green-700 border border-green-700 hover:bg-green-700 hover:text-white transition-colors duration-200">
-                      <Send className="mr-2 h-4 w-4" />
-                      Send
-                    </Button>
+                  <form
+                    className="flex flex-col gap-3"
+                    onSubmit={(e) => {
+                      e.preventDefault()
+                      if (input.trim() === "") return
+                      onSend(input)
+                      setInput("")
+                    }}
+                  >
+                    <div className="relative">
+                      <Textarea
+                        value={input}
+                        onKeyDown={(e) => {
+                          if (e.key.toLowerCase() === 'enter' && !inProgress) {
+                            onSend(input)
+                            setInput("")
+                          }
+                        }}
+                        onChange={(e) => setInput(e.target.value)}
+                        placeholder="Type your message..."
+                        className="min-h-[104px] resize-none rounded-xl border-muted-foreground/20 p-4 pl-4 pr-28 pb-10"
+                      />
+
+                      {/* Social preview icons moved to bottom-right, immediately left of send icon */}
+                      <div className="absolute right-12 bottom-3 flex items-center gap-2">
+                        <button
+                          type="button"
+                          aria-label="Preview LinkedIn"
+                          title="LinkedIn preview"
+                          onClick={() => setCanvasView('linkedin')}
+                          className={cn("w-8 h-8 rounded-md flex items-center justify-center", canvasView === 'linkedin' ? 'bg-gray-100' : 'hover:bg-gray-100')}
+                        >
+                          <Linkedin className="w-4 h-4 text-gray-700" />
+                        </button>
+                        <button
+                          type="button"
+                          aria-label="Preview X"
+                          title="X (Twitter) preview"
+                          onClick={() => setCanvasView('x')}
+                          className={cn("w-8 h-8 rounded-md flex items-center justify-center", canvasView === 'x' ? 'bg-gray-100' : 'hover:bg-gray-100')}
+                        >
+                          <Twitter className="w-4 h-4 text-gray-700" />
+                        </button>
+                        <button
+                          type="button"
+                          aria-label="Preview Facebook"
+                          title="Facebook preview"
+                          onClick={() => setCanvasView('facebook')}
+                          className={cn("w-8 h-8 rounded-md flex items-center justify-center", canvasView === 'facebook' ? 'bg-gray-100' : 'hover:bg-gray-100')}
+                        >
+                          <Facebook className="w-4 h-4 text-gray-700" />
+                        </button>
+                        <button
+                          type="button"
+                          aria-label="Preview Blog"
+                          title="Blog preview"
+                          onClick={() => setCanvasView('blog')}
+                          className={cn("w-8 h-8 rounded-md flex items-center justify-center", canvasView === 'blog' ? 'bg-gray-100' : 'hover:bg-gray-100')}
+                        >
+                          <Rss className="w-4 h-4 text-gray-700" />
+                        </button>
+                      </div>
+
+                      {/* Send icon-only button (arrow) at bottom-right */}
+                      <button
+                        type="button"
+                        aria-label="Send message"
+                        title="Send"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          if (input.trim() === "") return
+                          onSend(input)
+                          setInput("")
+                        }}
+                        className="absolute right-3 bottom-3 text-black hover:text-green-800 focus:outline-none p-1"
+                      >
+                        <Send className="w-4 h-4" />
+                      </button>
+                    </div>
                   </form>
                 </div>
-              </>)
+              )
             }}
           />
         </div>
-
       </div>
 
-  {/* Main Content (approx 3/5) */}
-  <div className="w-3/5 flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="bg-green-700 p-6 shadow-sm flex-shrink-0">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div>
-                <h2 className="text-2xl font-bold bg-white bg-clip-text text-transparent">
-                  Preview Canvas
-                </h2>
-                <p className="text-sm text-gray-300">Powered by Gemini AI & Google Web Search</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              {isAgentActive && <Badge className="bg-green-100 text-green-500 border-0 shadow-sm">
-                <div className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
-                Live Research
-              </Badge>}
-
-              {/* Canvas view dropdown (Blog / LinkedIn / X / Both) */}
-              <div className="relative dropdown-container">
-                <button
-                  onClick={() => setIsViewDropdownOpen(!isViewDropdownOpen)}
-                  className="flex items-center gap-2 p-2 border border-gray-200/50 rounded-lg bg-white hover:shadow-sm"
-                >
-                  <span className="text-sm font-medium text-black">
-                    {canvasView === 'blog' ? 'Blog' : canvasView === 'x' ? 'X (Twitter)' : canvasView === 'facebook' ? 'Facebook' : 'LinkedIn'}
-                  </span>
-                  <ChevronDown className={cn("w-4 h-4 text-gray-500 transition-transform duration-200", isViewDropdownOpen && "rotate-180")} />
-                </button>
-
-                <div className={cn(
-                  "absolute right-0 mt-2 w-44 bg-white/95 backdrop-blur-xl border border-gray-200/50 rounded-xl shadow-xl z-50 transition-all duration-200 transform origin-top",
-                  isViewDropdownOpen ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-95 -translate-y-2 pointer-events-none"
-                )}>
-                  <div className="p-1">
-                    <button onClick={() => { setCanvasView('linkedin'); setIsViewDropdownOpen(false) }} className={cn("w-full text-left text-sm p-2 rounded-md hover:bg-zinc-200", canvasView === 'linkedin' && "text-green-600")}>LinkedIn</button>
-                    <button onClick={() => { setCanvasView('x'); setIsViewDropdownOpen(false) }} className={cn("w-full text-left text-sm p-2 rounded-md hover:bg-zinc-200", canvasView === 'x' && "text-green-600")}>X (Twitter)</button>
-                    <button onClick={() => { setCanvasView('facebook'); setIsViewDropdownOpen(false) }} className={cn("w-full text-left text-sm p-2 rounded-md hover:bg-zinc-200", canvasView === 'facebook' && "text-green-600")}>Facebook</button>
-                    <button onClick={() => { setCanvasView('blog'); setIsViewDropdownOpen(false) }} className={cn("w-full text-left text-sm p-2 rounded-md hover:bg-zinc-200", canvasView === 'blog' && "text-green-600")}>Blog</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Main Canvas */}
+      {/* Main Content (approx 3/5) */}
+      <div className="w-3/5 flex flex-col overflow-hidden">
         <div className="flex-1 p-6 overflow-y-auto">
           {showColumns ? (
             // Render single selected canvas view

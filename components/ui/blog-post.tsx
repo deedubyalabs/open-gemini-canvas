@@ -146,14 +146,20 @@ export default function BlogPost({ title, content, author = 'Greener Grass', dat
       )}
 
       <div className="p-10">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-          <div>
-            <div className="text-sm text-green-600 font-medium mb-1">{category}</div>
-            <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 leading-tight">{title}</h1>
-          </div>
-          <div className="text-right">
-            <div className="text-sm text-gray-700">{author}</div>
-            <div className="text-xs text-gray-500">{format(dateObj, 'PPP')}</div>
+        <div className="mb-6">
+          <div className="text-sm text-green-600 font-medium mb-1">{category}</div>
+          <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 leading-tight">{title}</h1>
+
+          {/* Metadata: author, date, reading time */}
+          <div className="mt-3 text-sm text-gray-600 flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <User className="w-4 h-4 text-gray-500" />
+              <span>{author}</span>
+            </div>
+            <span className="text-gray-400">•</span>
+            <div>{format(dateObj, 'PPP')}</div>
+            <span className="text-gray-400">•</span>
+            <div>{Math.max(1, Math.ceil((content ? content.split(/\s+/).filter(Boolean).length : 0) / 200))} min read</div>
           </div>
         </div>
 
