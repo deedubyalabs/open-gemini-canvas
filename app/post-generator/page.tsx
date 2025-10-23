@@ -284,6 +284,7 @@ export default function PostGenerator() {
               <div>
                 <h1 className="text-xl font-bold bg-black bg-clip-text text-transparent">
                   Greener Grass Content Generation Suite
+                  <p className="text-sm font-normal text-gray-400">Powered by <span className="text-green-700">Gemini AI</span> and Google Web Search</p>
                 </h1>
               </div>
             </div>
@@ -291,8 +292,8 @@ export default function PostGenerator() {
             {/* Live Research badge on the right */}
             <div className="flex items-center">
               {running && (
-                <Badge className="bg-green-100 text-green-700 border border-green-700">
-                  <span className="inline-block w-2 h-2 rounded-full bg-green-700 mr-2 animate-pulse" />
+                <Badge className="bg-green-100 text-green-700 border border-green-700 animate-pulse">
+                  <span className="inline-block w-2 h-2 rounded-full bg-green-700 mr-1 animate-pulse" />
                   Live Research
                 </Badge>
               )}
