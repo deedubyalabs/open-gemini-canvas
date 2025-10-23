@@ -12,10 +12,8 @@ import uvicorn
 from copilotkit.integrations.fastapi import add_fastapi_endpoint
 from copilotkit import CopilotKitSDK, LangGraphAgent
 from posts_generator_agent import post_generation_graph
-from stack_agent import stack_analysis_graph
 
 app = FastAPI()
-
 
 sdk = CopilotKitSDK(
     agents=[
@@ -23,12 +21,7 @@ sdk = CopilotKitSDK(
             name="post_generation_agent",
             description="An agent that can help with the generation of LinkedIn posts and X posts.",
             graph=post_generation_graph,
-        ),
-        LangGraphAgent(
-            name="stack_analysis_agent",
-            description="Analyze a GitHub repository URL to infer purpose and tech stack (frontend, backend, DB, infra).",
-            graph=stack_analysis_graph,
-        ),
+        )
     ]
 )
 
